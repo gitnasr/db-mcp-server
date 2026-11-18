@@ -11,13 +11,8 @@ import functools
 import re
 from typing import Any, Dict, List, Tuple
 
-try:
-    from mcp import McpError
-except ImportError:
-    from mcp.shared.exceptions import MCPError
-    class McpError(MCPError):
-        def __init__(self, message, code=-32603, data=None):
-            super().__init__(code, str(message), data)
+from mcp import McpError
+from mcp.types import INTERNAL_ERROR, ErrorData
 from config import DB_API_KEY, DB_API_SECRET, BASE_URL_STADA
 
 # --- Security & Validation ---
@@ -127,6 +122,11 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     return 2 * math.asin(math.sqrt(a)) * 6371
 
 # --- Error Handling ---
+def _mcp_error(message: str) -> McpError:
+    # McpError takes an ErrorData, not a str; a bare str crashes on `.message`
+    # and hides the real error from the client.
+    return McpError(ErrorData(code=INTERNAL_ERROR, message=message))
+
 def tool_error_handler(func):
     """
     Decorator to handle tool-specific errors and convert them to JSON-RPC errors.
@@ -139,7 +139,10 @@ def tool_error_handler(func):
             # Log full error details for debugging (server-side only)
             logging.error(f"DB API Error: {e.response.status_code} - {e.response.text}", exc_info=True)
             # Return sanitized error message to client
-            if e.response.status_code == 404:
+            if e.response.status_code in (401, 403):
+                msg = (f"DB API rejected the credentials (HTTP {e.response.status_code}); "
+                       "check DB_API_KEY/DB_API_SECRET and that the app is subscribed to this API")
+            elif e.response.status_code == 404:
                 msg = "Requested resource not found"
             elif e.response.status_code == 429:
                 msg = "Rate limit exceeded, please try again later"
@@ -147,13 +150,13 @@ def tool_error_handler(func):
                 msg = "External service temporarily unavailable"
             else:
                 msg = f"External API error (HTTP {e.response.status_code})"
-            raise McpError(msg) from e
+            raise _mcp_error(msg) from e
         except ValueError as e:
             msg = f"Invalid parameter: {e}"
             logging.warning(msg)
-            raise McpError(msg) from e
+            raise _mcp_error(msg) from e
         except Exception as e:
             msg = f"An unexpected server error occurred: {type(e).__name__} - {e}"
             logging.error(msg, exc_info=True)
-            raise McpError(msg) from e
+            raise _mcp_error(msg) from e
     return wrapper
