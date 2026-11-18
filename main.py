@@ -26,22 +26,7 @@ app = FastAPI(
 )
 
 # Add security middleware
-allowed_hosts = [
-    "localhost", 
-    "127.0.0.1"
-]
-
-# Add custom domain if configured
-if CUSTOM_DOMAIN:
-    allowed_hosts.append(CUSTOM_DOMAIN)
-
-# Add Cloud Run URL if configured (for load balancer routing)
-if CLOUD_RUN_URL:
-    # Extract hostname from URL
-    from urllib.parse import urlparse
-    cloud_run_hostname = urlparse(CLOUD_RUN_URL).netloc
-    if cloud_run_hostname:
-        allowed_hosts.append(cloud_run_hostname)
+allowed_hosts = ["*"]
 
 app.add_middleware(
     TrustedHostMiddleware, 
