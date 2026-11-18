@@ -11,7 +11,13 @@ import functools
 import re
 from typing import Any, Dict, List, Tuple
 
-from mcp import McpError
+try:
+    from mcp import McpError
+except ImportError:
+    from mcp.shared.exceptions import MCPError
+    class McpError(MCPError):
+        def __init__(self, message, code=-32603, data=None):
+            super().__init__(code, str(message), data)
 from config import DB_API_KEY, DB_API_SECRET, BASE_URL_STADA
 
 # --- Security & Validation ---

@@ -6,7 +6,10 @@ Deutsche Bahn MCP Server - Main server setup and configuration
 import logging
 import sys
 from fastapi import Depends, Request
-from mcp import McpError
+try:
+    from mcp import McpError
+except ImportError:
+    from mcp.shared.exceptions import MCPError as McpError
 from mcp.server.fastmcp import FastMCP
 from authlib.oauth2.rfc6750 import BearerTokenValidator
 
